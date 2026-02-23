@@ -504,3 +504,109 @@ TradeOS is built to make money from day one:
 **🎊 TradeOS is COMPLETE and READY TO LAUNCH! 🎊**
 
 This is a production-grade, enterprise-ready algorithmic trading platform that can compete with the best in the industry. Start your trading empire today!
+
+---
+
+## TRADEOS MASTER CONTEXT (Paste This in New Chat)
+
+We are building TradeOS.
+
+TradeOS is a multi-asset algorithmic trading SaaS platform supporting:
+
+- Crypto (BTC, ETH, SOL, etc.)
+- Forex (EUR/USD, GBP/USD, etc.)
+- Gold (XAUUSD)
+- Commodities
+- Indices
+
+This is NOT a simple EMA bot.
+This is a full modular trading operating system.
+
+### 🔧 Architecture
+
+This is a monorepo structure:
+
+- `tradeos/`
+- `backend` (FastAPI)
+- `frontend` (React + TypeScript + Vite + Tailwind)
+- `nginx`
+- `monitoring` (Prometheus + Grafana)
+- `scripts` (db init + seed)
+- `docker-compose.yml`
+- `docker-compose.override.yml`
+- `docker-compose.prod.yml`
+
+### 🧠 Backend
+
+- FastAPI
+- Postgres 16 (Docker)
+- Redis
+- Celery Worker
+- Celery Beat
+- Authentication system
+- Trading endpoints
+- Strategy engine structure
+- Risk management structure
+
+### 🎨 Frontend
+
+- React + TypeScript
+- Vite
+- TailwindCSS
+- Pages:
+  - Dashboard
+  - Login / Register
+  - Strategies
+  - Trading
+  - Risk
+  - Billing
+  - Settings
+  - Backtest
+
+### 📊 Monitoring
+
+- Prometheus
+- Grafana
+- Metrics endpoint
+
+### 🐳 Docker Setup
+
+We are running everything via Docker Compose.
+
+Issues we encountered:
+
+- `container_name` conflicts with replicas
+- `deploy.replicas` used in normal docker compose
+- `version is obsolete` warnings
+- Windows Docker Desktop WSL context issues
+
+### 🎯 Goal
+
+We want to:
+
+- Make TradeOS run locally cleanly with docker compose
+- Clean architecture (remove unnecessary code)
+- Ensure security (no exposed secrets)
+- Make it production-ready
+- Design monetization model (SaaS trading platform)
+- Eventually deploy publicly
+
+My GitHub repo:
+(INSERT YOUR LINK HERE)
+
+### ✅ What This Does
+
+When you paste that in the new chat:
+
+- I instantly understand full system
+- I won’t ask basic questions again
+- We continue exactly where we left off
+- We go into deep architecture audit mode
+
+### ⚠️ Important
+
+Some files you uploaded earlier in this chat have expired on my side.
+So in the new chat:
+
+- Either paste GitHub link
+- Or upload full zip again
