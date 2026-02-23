@@ -527,7 +527,7 @@ class Position(Base):
         return self.avg_entry_price * self.quantity
     
     @property
-    is_long(self) -> bool:
+    def is_long(self) -> bool:
         """Check if position is long."""
         return self.side == PositionSide.LONG
 

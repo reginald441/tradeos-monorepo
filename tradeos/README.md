@@ -135,6 +135,30 @@ tradeos/
 └── README.md
 ```
 
+
+## 🔄 Syncing Local Fixes to GitHub
+
+Changes made in this environment are local commits until you push them to your remote repository.
+
+```bash
+# 1) Add your GitHub remote once (if missing)
+git remote add origin https://github.com/reginald441/tradeos-monorepo.git
+
+# 2) Verify remotes
+git remote -v
+
+# 3) Push your current branch (example: work)
+git push -u origin work
+
+# 4) Open a PR on GitHub from work -> main
+```
+
+If `origin` already exists and points somewhere else, update it:
+
+```bash
+git remote set-url origin https://github.com/reginald441/tradeos-monorepo.git
+```
+
 ## 🔧 Configuration
 
 ### Environment Variables
