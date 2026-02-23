@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeOS - Algorithmic Trading Operating System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' },
+                        emerald: { 450: '#10b981', 550: '#059669' },
+                        rose: { 450: '#f43f5e', 550: '#e11d48' },
+                        amber: { 450: '#f59e0b', 550: '#d97706' },
+                        cyan: { 450: '#06b6d4', 550: '#0891b2' },
+                        violet: { 450: '#8b5cf6', 550: '#7c3aed' }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #020617; }
+        .gradient-text { background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(148, 163, 184, 0.1); }
+        .glow-cyan { box-shadow: 0 0 20px rgba(6, 182, 212, 0.3); }
+        .glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+        .glow-rose { box-shadow: 0 0 20px rgba(244, 63, 94, 0.3); }
+        .chart-container { position: relative; height: 300px; }
+        .sidebar-item:hover { background: rgba(6, 182, 212, 0.1); border-right: 3px solid #06b6d4; }
+        .sidebar-item.active { background: rgba(6, 182, 212, 0.15); border-right: 3px solid #06b6d4; }
+        .metric-card { transition: all 0.3s ease; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        .btn-primary { background: linear-gradient(135deg, #06b6d4, #0891b2); transition: all 0.3s; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 20px rgba(6, 182, 212, 0.4); }
+        .status-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .trade-row:hover { background: rgba(6, 182, 212, 0.05); }
+        .scroll-hide::-webkit-scrollbar { display: none; }
+        .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // Mock data for the dashboard
+        const mockData = {
+            portfolio: {
+                totalValue: 124567.89,
+                dayPnL: 2345.67,
+                dayPnLPct: 1.92,
+                totalPnL: 24567.89,
+                totalPnLPct: 24.57,
+                buyingPower: 87654.32,
+                marginUsed: 36913.57
+            },
+            positions: [
+                { symbol: 'BTCUSDT', side: 'LONG', qty: 0.5, entry: 64230.50, current: 65123.80, pnl: 446.65, pnlPct: 1.39 },
+                { symbol: 'ETHUSDT', side: 'LONG', qty: 4.2, entry: 3456.78, current: 3521.45, pnl: 271.61, pnlPct: 1.87 },
+                { symbol: 'SOLUSDT', side: 'SHORT', qty: 50, entry: 148.92, current: 142.35, pnl: 328.50, pnlPct: 4.41 },
+                { symbol: 'EURUSD', side: 'LONG', qty: 10000, entry: 1.0845, current: 1.0872, pnl: 270.00, pnlPct: 0.25 },
+                { symbol: 'XAUUSD', side: 'LONG', qty: 2, entry: 2034.50, current: 2051.20, pnl: 33.40, pnlPct: 0.82 }
+            ],
+            recentTrades: [
+                { time: '14:32:05', symbol: 'BTCUSDT', side: 'BUY', qty: 0.1, price: 65120.50, pnl: null },
+                { time: '14:28:22', symbol: 'ETHUSDT', side: 'SELL', qty: 0.5, price: 3520.80, pnl: 12.50 },
+                { time: '14:15:47', symbol: 'SOLUSDT', side: 'BUY', qty: 10, price: 142.35, pnl: null },
+                { time: '13:58:12', symbol: 'BTCUSDT', side: 'SELL', qty: 0.05, price: 64980.20, pnl: -8.20 },
+                { time: '13:42:33', symbol: 'EURUSD', side: 'BUY', qty: 5000, price: 1.0870, pnl: null }
+            ],
+            strategies: [
+                { name: 'EMA Crossover', type: 'Trend Following', symbol: 'BTCUSDT', status: 'active', pnl: 12450.80, trades: 156 },
+                { name: 'RSI Reversion', type: 'Mean Reversion', symbol: 'ETHUSDT', status: 'active', pnl: 8320.50, trades: 234 },
+                { name: 'Volatility Breakout', type: 'Volatility', symbol: 'SOLUSDT', status: 'paused', pnl: -1230.40, trades: 89 },
+                { name: 'Liquidity Sweep', type: 'Liquidity', symbol: 'XAUUSD', status: 'active', pnl: 5670.20, trades: 45 }
+            ],
+            marketData: {
+                'BTCUSDT': { price: 65123.80, change: 2.34, volume: 28500000000 },
+                'ETHUSDT': { price: 3521.45, change: 1.87, volume: 15200000000 },
+                'SOLUSDT': { price: 142.35, change: -3.21, volume: 2100000000 },
+                'EURUSD': { price: 1.0872, change: 0.15, volume: 890000000 },
+                'XAUUSD': { price: 2051.20, change: 0.82, volume: 125000000 }
+            }
+        };
+
+        // Sidebar Component
+        const Sidebar = ({ activeTab, setActiveTab }) => {
+            const menuItems = [
+                { id: 'dashboard', icon: 'fa-chart-line', label: 'Dashboard' },
+                { id: 'trading', icon: 'fa-exchange-alt', label: 'Trading' },
+                { id: 'strategies', icon: 'fa-robot', label: 'Strategies' },
+                { id: 'backtest', icon: 'fa-flask', label: 'Backtest' },
+                { id: 'risk', icon: 'fa-shield-alt', label: 'Risk' },
+                { id: 'analytics', icon: 'fa-chart-pie', label: 'Analytics' },
+                { id: 'billing', icon: 'fa-credit-card', label: 'Billing' },
+                { id: 'settings', icon: 'fa-cog', label: 'Settings' }
+            ];
+            
+            return (
+                <div className="w-64 bg-slate-900 border-r border-slate-800 h-screen fixed left-0 top-0 flex flex-col">
+                    <div className="p-6 border-b border-slate-800">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 flex items-center justify-center">
+                                <i className="fas fa-chart-candlestick text-white text-lg"></i>
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold gradient-text">TradeOS</h1>
+                                <p className="text-xs text-slate-500">v1.0.0 Pro</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <nav className="flex-1 py-4">
+                        {menuItems.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`w-full flex items-center gap-3 px-6 py-3 text-left transition-all sidebar-item ${
+                                    activeTab === item.id ? 'active text-cyan-400' : 'text-slate-400 hover:text-slate-200'
+                                }`}
+                            >
+                                <i className={`fas ${item.icon} w-5`}></i>
+                                <span className="font-medium">{item.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+                    
+                    <div className="p-4 border-t border-slate-800">
+                        <div className="glass-panel rounded-xl p-4">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-sm font-bold">
+                                    JD
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium">John Doe</p>
+                                    <p className="text-xs text-emerald-400">Pro Plan</p>
+                                </div>
+                            </div>
+                            <button className="w-full py-2 text-xs text-slate-400 hover:text-white transition">
+                                <i className="fas fa-sign-out-alt mr-2"></i>Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Header Component
+        const Header = () => {
+            return (
+                <header className="h-16 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 flex items-center justify-between px-6 sticky top-0 z-50">
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                            <span className="text-emerald-400 font-mono">● LIVE</span>
+                            <span className="text-slate-600">|</span>
+                            <span>WS: <span className="text-emerald-400">Connected</span></span>
+                            <span className="text-slate-600">|</span>
+                            <span>Latency: <span className="text-emerald-400">12ms</span></span>
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 mr-6">
+                            <div className="text-right">
+                                <p className="text-xs text-slate-500">Portfolio Value</p>
+                                <p className="text-lg font-bold font-mono">$124,567.89</p>
+                            </div>
+                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${mockData.portfolio.dayPnL >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                                <i className={`fas fa-arrow-${mockData.portfolio.dayPnL >= 0 ? 'up' : 'down'} mr-1`}></i>
+                                {mockData.portfolio.dayPnLPct}%
+                            </div>
+                        </div>
+                        
+                        <button className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition relative">
+                            <i className="fas fa-bell text-slate-400"></i>
+                            <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full status-dot"></span>
+                        </button>
+                    </div>
+                </header>
+            );
+        };
+
+        // Metric Card Component
+        const MetricCard = ({ title, value, subtitle, trend, trendUp, icon, color }) => {
+            const colorClasses = {
+                cyan: 'from-cyan-500 to-cyan-600',
+                emerald: 'from-emerald-500 to-emerald-600',
+                rose: 'from-rose-500 to-rose-600',
+                violet: 'from-violet-500 to-violet-600',
+                amber: 'from-amber-500 to-amber-600'
+            };
+            
+            return (
+                <div className="glass-panel rounded-2xl p-6 metric-card">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClasses[color]} flex items-center justify-center`}>
+                            <i className={`fas ${icon} text-white text-xl`}></i>
+                        </div>
+                        {trend && (
+                            <div className={`flex items-center gap-1 text-sm font-medium ${trendUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                <i className={`fas fa-arrow-${trendUp ? 'up' : 'down'}`}></i>
+                                {trend}%
+                            </div>
+                        )}
+                    </div>
+                    <p className="text-slate-400 text-sm mb-1">{title}</p>
+                    <p className="text-2xl font-bold font-mono mb-1">{value}</p>
+                    {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+                </div>
+            );
+        };
+
+        // Chart Component
+        const PortfolioChart = () => {
+            const canvasRef = useRef(null);
+            
+            useEffect(() => {
+                const ctx = canvasRef.current.getContext('2d');
+                
+                // Generate sample data
+                const labels = Array.from({length: 30}, (_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - (29 - i));
+                    return d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+                });
+                
+                const data = [100000];
+                for (let i = 1; i < 30; i++) {
+                    data.push(data[i-1] * (1 + (Math.random() - 0.45) * 0.03));
+                }
+                
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Portfolio Value',
+                            data,
+                            borderColor: '#06b6d4',
+                            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false, drawBorder: false },
+                                ticks: { color: '#64748b', font: { size: 10 } }
+                            },
+                            y: {
+                                grid: { color: 'rgba(148, 163, 184, 0.1)', drawBorder: false },
+                                ticks: { 
+                                    color: '#64748b', 
+                                    font: { size: 10 },
+                                    callback: (value) => '$' + (value / 1000).toFixed(0) + 'k'
+                                }
+                            }
+                        },
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        }
+                    }
+                });
+            }, []);
+            
+            return (
+                <div className="glass-panel rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Portfolio Performance</h3>
+                        <div className="flex gap-2">
+                            {['1D', '1W', '1M', '3M', '1Y', 'ALL'].map(period => (
+                                <button key={period} className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                                    period === '1M' ? 'bg-cyan-500/20 text-cyan-400' : 'text-slate-500 hover:text-slate-300'
+                                }`}>
+                                    {period}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="chart-container">
+                        <canvas ref={canvasRef}></canvas>
+                    </div>
+                </div>
+            );
+        };
+
+        // Positions Table Component
+        const PositionsTable = () => {
+            return (
+                <div className="glass-panel rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Open Positions</h3>
+                        <button className="text-cyan-400 text-sm hover:underline">View All</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="text-left text-xs text-slate-500 border-b border-slate-700">
+                                    <th className="pb-3 font-medium">Symbol</th>
+                                    <th className="pb-3 font-medium">Side</th>
+                                    <th className="pb-3 font-medium">Quantity</th>
+                                    <th className="pb-3 font-medium">Entry Price</th>
+                                    <th className="pb-3 font-medium">Current</th>
+                                    <th className="pb-3 font-medium text-right">PnL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {mockData.positions.map((pos, idx) => (
+                                    <tr key={idx} className="trade-row border-b border-slate-800/50 last:border-0">
+                                        <td className="py-3">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono font-medium">{pos.symbol}</span>
+                                            </div>
+                                        </td>
+                                        <td className="py-3">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                pos.side === 'LONG' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                                            }`}>
+                                                {pos.side}
+                                            </span>
+                                        </td>
+                                        <td className="py-3 font-mono">{pos.qty}</td>
+                                        <td className="py-3 font-mono text-slate-400">${pos.entry.toLocaleString()}</td>
+                                        <td className="py-3 font-mono">${pos.current.toLocaleString()}</td>
+                                        <td className="py-3 text-right">
+                                            <div className={`font-mono font-medium ${pos.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                {pos.pnl >= 0 ? '+' : ''}${pos.pnl.toFixed(2)}
+                                            </div>
+                                            <div className={`text-xs ${pos.pnlPct >= 0 ? 'text-emerald-400/70' : 'text-rose-400/70'}`}>
+                                                {pos.pnlPct >= 0 ? '+' : ''}{pos.pnlPct.toFixed(2)}%
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        // Strategies Component
+        const StrategiesList = () => {
+            return (
+                <div className="glass-panel rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Active Strategies</h3>
+                        <button className="btn-primary px-4 py-2 rounded-lg text-sm font-medium">
+                            <i className="fas fa-plus mr-2"></i>New Strategy
+                        </button>
+                    </div>
+                    <div className="space-y-3">
+                        {mockData.strategies.map((strategy, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                        strategy.status === 'active' ? 'bg-emerald-500/20' : 'bg-amber-500/20'
+                                    }`}>
+                                        <i className={`fas fa-robot ${strategy.status === 'active' ? 'text-emerald-400' : 'text-amber-400'}`}></i>
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">{strategy.name}</p>
+                                        <p className="text-xs text-slate-500">{strategy.type} • {strategy.symbol}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-6">
+                                    <div className="text-right">
+                                        <p className={`font-mono font-medium ${strategy.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
+                                        </p>
+                                        <p className="text-xs text-slate-500">{strategy.trades} trades</p>
+                                    </div>
+                                    <div className={`w-12 h-6 rounded-full p-1 cursor-pointer transition ${
+                                        strategy.status === 'active' ? 'bg-emerald-500' : 'bg-slate-600'
+                                    }`}>
+                                        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                                            strategy.status === 'active' ? 'translate-x-6' : 'translate-x-0'
+                                        }`}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // Market Ticker Component
+        const MarketTicker = () => {
+            return (
+                <div className="glass-panel rounded-2xl p-6">
+                    <h3 className="text-lg font-semibold mb-4">Market Overview</h3>
+                    <div className="space-y-3">
+                        {Object.entries(mockData.marketData).map(([symbol, data]) => (
+                            <div key={symbol} className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-xs font-bold">
+                                        {symbol.substring(0, 2)}
+                                    </div>
+                                    <span className="font-mono font-medium">{symbol}</span>
+                                </div>
+                                <div className="text-right">
+                                    <p className="font-mono">${data.price.toLocaleString()}</p>
+                                    <p className={`text-xs ${data.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        {data.change >= 0 ? '+' : ''}{data.change}%
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // Dashboard View
+        const Dashboard = () => {
+            return (
+                <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <MetricCard 
+                            title="Total Equity" 
+                            value={`$${mockData.portfolio.totalValue.toLocaleString()}`}
+                            subtitle="+$24,567.89 all time"
+                            trend={24.57}
+                            trendUp={true}
+                            icon="fa-wallet"
+                            color="cyan"
+                        />
+                        <MetricCard 
+                            title="Day P&L" 
+                            value={`+$${mockData.portfolio.dayPnL.toLocaleString()}`}
+                            subtitle="+1.92% today"
+                            trend={1.92}
+                            trendUp={true}
+                            icon="fa-chart-line"
+                            color="emerald"
+                        />
+                        <MetricCard 
+                            title="Open Positions" 
+                            value={mockData.positions.length.toString()}
+                            subtitle="$36,913 margin used"
+                            icon="fa-layer-group"
+                            color="violet"
+                        />
+                        <MetricCard 
+                            title="Buying Power" 
+                            value={`$${mockData.portfolio.buyingPower.toLocaleString()}`}
+                            subtitle="Available to trade"
+                            icon="fa-bolt"
+                            color="amber"
+                        />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2">
+                            <PortfolioChart />
+                        </div>
+                        <div>
+                            <MarketTicker />
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <PositionsTable />
+                        <StrategiesList />
+                    </div>
+                </div>
+            );
+        };
+
+        // Trading View
+        const Trading = () => {
+            const [orderType, setOrderType] = useState('market');
+            const [side, setSide] = useState('buy');
+            
+            return (
+                <div className="p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2">
+                            <div className="glass-panel rounded-2xl p-6 mb-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center">
+                                            <i className="fab fa-bitcoin text-white text-2xl"></i>
+                                        </div>
+                                        <div>
+                                            <h2 className="text-2xl font-bold">BTCUSDT</h2>
+                                            <p className="text-slate-500">Bitcoin / Tether</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-3xl font-bold font-mono">$65,123.80</p>
+                                        <p className="text-emerald-400"><i className="fas fa-arrow-up mr-1"></i>+2.34%</p>
+                                    </div>
+                                </div>
+                                <div className="h-96 bg-slate-800/50 rounded-xl flex items-center justify-center">
+                                    <p className="text-slate-500">Interactive Chart (TradingView)</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div className="glass-panel rounded-2xl p-6">
+                                <h3 className="text-lg font-semibold mb-4">Place Order</h3>
+                                
+                                <div className="flex gap-2 mb-4">
+                                    <button 
+                                        onClick={() => setSide('buy')}
+                                        className={`flex-1 py-2 rounded-lg font-medium transition ${
+                                            side === 'buy' ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-400'
+                                        }`}
+                                    >
+                                        Buy
+                                    </button>
+                                    <button 
+                                        onClick={() => setSide('sell')}
+                                        className={`flex-1 py-2 rounded-lg font-medium transition ${
+                                            side === 'sell' ? 'bg-rose-500 text-white' : 'bg-slate-700 text-slate-400'
+                                        }`}
+                                    >
+                                        Sell
+                                    </button>
+                                </div>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-sm text-slate-500 mb-1 block">Order Type</label>
+                                        <select className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white">
+                                            <option>Market</option>
+                                            <option>Limit</option>
+                                            <option>Stop</option>
+                                            <option>Stop Limit</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-sm text-slate-500 mb-1 block">Quantity (BTC)</label>
+                                        <input 
+                                            type="number" 
+                                            placeholder="0.00"
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="text-sm text-slate-500 mb-1 block">Price (USDT)</label>
+                                        <input 
+                                            type="number" 
+                                            placeholder="Market"
+                                            disabled={orderType === 'market'}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white font-mono disabled:opacity-50"
+                                        />
+                                    </div>
+                                    
+                                    <div className="pt-4 border-t border-slate-700">
+                                        <div className="flex justify-between text-sm mb-2">
+                                            <span className="text-slate-500">Estimated Value</span>
+                                            <span className="font-mono">$0.00</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm mb-4">
+                                            <span className="text-slate-500">Fee (0.1%)</span>
+                                            <span className="font-mono">$0.00</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button className={`w-full py-3 rounded-xl font-bold text-lg transition ${
+                                        side === 'buy' 
+                                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
+                                            : 'bg-rose-500 hover:bg-rose-600 text-white'
+                                    }`}>
+                                        {side === 'buy' ? 'Buy BTC' : 'Sell BTC'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Strategies View
+        const Strategies = () => {
+            return (
+                <div className="p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 className="text-2xl font-bold">Trading Strategies</h2>
+                            <p className="text-slate-500">Manage and monitor your algorithmic strategies</p>
+                        </div>
+                        <button className="btn-primary px-6 py-3 rounded-xl font-medium">
+                            <i className="fas fa-plus mr-2"></i>Create Strategy
+                        </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {mockData.strategies.map((strategy, idx) => (
+                            <div key={idx} className="glass-panel rounded-2xl p-6 hover:border-cyan-500/50 transition cursor-pointer">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                        strategy.status === 'active' ? 'bg-emerald-500/20' : 'bg-amber-500/20'
+                                    }`}>
+                                        <i className={`fas fa-robot text-xl ${strategy.status === 'active' ? 'text-emerald-400' : 'text-amber-400'}`}></i>
+                                    </div>
+                                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                        strategy.status === 'active' 
+                                            ? 'bg-emerald-500/20 text-emerald-400' 
+                                            : 'bg-amber-500/20 text-amber-400'
+                                    }`}>
+                                        {strategy.status === 'active' ? 'Active' : 'Paused'}
+                                    </div>
+                                </div>
+                                
+                                <h3 className="text-lg font-semibold mb-1">{strategy.name}</h3>
+                                <p className="text-sm text-slate-500 mb-4">{strategy.type} • {strategy.symbol}</p>
+                                
+                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <p className="text-xs text-slate-500 mb-1">Total P&L</p>
+                                        <p className={`font-mono font-medium ${strategy.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                            {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-500 mb-1">Trades</p>
+                                        <p className="font-mono font-medium">{strategy.trades}</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex gap-2">
+                                    <button className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition">
+                                        Edit
+                                    </button>
+                                    <button className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition">
+                                        Backtest
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        
+                        <div className="glass-panel rounded-2xl p-6 border-dashed border-2 border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-cyan-500/50 transition min-h-[280px]">
+                            <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-4">
+                                <i className="fas fa-plus text-2xl text-slate-500"></i>
+                            </div>
+                            <p className="text-lg font-medium text-slate-400">Create New Strategy</p>
+                            <p className="text-sm text-slate-600 text-center mt-2">Build a custom trading algorithm</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main App Component
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            
+            const renderContent = () => {
+                switch(activeTab) {
+                    case 'dashboard': return <Dashboard />;
+                    case 'trading': return <Trading />;
+                    case 'strategies': return <Strategies />;
+                    case 'backtest': return <div className="p-6"><h2 className="text-2xl font-bold">Backtest</h2><p className="text-slate-500">Backtesting interface coming soon...</p></div>;
+                    case 'risk': return <div className="p-6"><h2 className="text-2xl font-bold">Risk Management</h2><p className="text-slate-500">Risk dashboard coming soon...</p></div>;
+                    case 'analytics': return <div className="p-6"><h2 className="text-2xl font-bold">Analytics</h2><p className="text-slate-500">Advanced analytics coming soon...</p></div>;
+                    case 'billing': return <div className="p-6"><h2 className="text-2xl font-bold">Billing</h2><p className="text-slate-500">Subscription management coming soon...</p></div>;
+                    case 'settings': return <div className="p-6"><h2 className="text-2xl font-bold">Settings</h2><p className="text-slate-500">User settings coming soon...</p></div>;
+                    default: return <Dashboard />;
+                }
+            };
+            
+            return (
+                <div className="flex min-h-screen bg-slate-950">
+                    <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+                    <div className="flex-1 ml-64">
+                        <Header />
+                        <main className="min-h-[calc(100vh-64px)]">
+                            {renderContent()}
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

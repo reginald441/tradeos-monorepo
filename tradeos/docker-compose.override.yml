@@ -1,0 +1,45 @@
+# =============================================================================
+# TradeOS Docker Compose Override (Development)
+# This file extends docker-compose.yml for local development
+# =============================================================================
+
+version: "3.9"
+
+services:
+  backend:
+    build:
+      target: development
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    environment:
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      target: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    command: npm start
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  nginx:
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro

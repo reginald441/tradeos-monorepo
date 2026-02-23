@@ -1,0 +1,30 @@
+# TradeOS Strategy Engine Requirements
+# ====================================
+
+# Core dependencies
+pandas>=1.5.0
+numpy>=1.23.0
+
+# Technical analysis
+# ta-lib>=0.4.0  # Optional: for TA-Lib integration
+
+# Data handling
+python-dateutil>=2.8.0
+
+# Configuration
+pyyaml>=6.0
+
+# Optimization
+scipy>=1.9.0
+
+# Async support (for live trading)
+asyncio>=3.4.3
+
+# Utilities
+typing-extensions>=4.0.0
+
+# Development dependencies (optional)
+pytest>=7.0.0
+pytest-asyncio>=0.20.0
+black>=22.0.0
+mypy>=0.990

@@ -1,0 +1,98 @@
+# =============================================================================
+# TradeOS Docker Compose Production Override
+# Additional configuration for production deployments
+# =============================================================================
+
+version: "3.9"
+
+services:
+  backend:
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  frontend:
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+      restart_policy:
+        condition: any
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  nginx:
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # =============================================================================
+  # LOG AGGREGATION (Optional - for production)
+  # =============================================================================
+  fluentd:
+    image: fluent/fluentd:v1.16-debian
+    container_name: tradeos-fluentd
+    volumes:
+      - ./monitoring/fluentd/conf:/fluentd/etc
+      - backend_logs:/var/log/tradeos:ro
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - tradeos-network
+    profiles:
+      - logging

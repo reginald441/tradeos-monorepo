@@ -1,0 +1,416 @@
+# =============================================================================
+# TradeOS - Production Docker Compose Configuration
+# =============================================================================
+# This file orchestrates all TradeOS services for production deployment
+# Includes: Backend (FastAPI), Frontend (React/Nginx), PostgreSQL, Redis, Nginx
+# =============================================================================
+
+version: "3.9"
+
+# =============================================================================
+# SERVICES
+# =============================================================================
+services:
+  # ===========================================================================
+  # PostgreSQL Database with TimescaleDB Extension
+  # ===========================================================================
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: tradeos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tradeos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tradeos_secure_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-tradeos}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - tradeos-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tradeos} -d ${POSTGRES_DB:-tradeos}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: >
+      postgres
+      -c shared_preload_libraries=timescaledb
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=655kB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ===========================================================================
+  # Redis Cache & Message Broker
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: tradeos-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-tradeos_redis_pass}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - tradeos-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # ===========================================================================
+  # Backend API Service (FastAPI)
+  # ===========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: tradeos-backend
+    restart: unless-stopped
+    environment:
+      # Application
+      APP_NAME: ${APP_NAME:-TradeOS}
+      APP_ENV: ${APP_ENV:-production}
+      DEBUG: ${DEBUG:-false}
+      SECRET_KEY: ${SECRET_KEY:-your-super-secret-key-change-in-production}
+      
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tradeos}:${POSTGRES_PASSWORD:-tradeos_secure_password_2024}@postgres:5432/${POSTGRES_DB:-tradeos}
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-20}
+      DATABASE_MAX_OVERFLOW: ${DATABASE_MAX_OVERFLOW:-10}
+      
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:-tradeos_redis_pass}@redis:6379/0
+      REDIS_CACHE_URL: redis://:${REDIS_PASSWORD:-tradeos_redis_pass}@redis:6379/1
+      
+      # Security
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://localhost,https://tradeos.local}
+      
+      # Rate Limiting
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-100}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      
+      # External APIs
+      BINANCE_API_KEY: ${BINANCE_API_KEY:-}
+      BINANCE_API_SECRET: ${BINANCE_API_SECRET:-}
+      ALPACA_API_KEY: ${ALPACA_API_KEY:-}
+      ALPACA_API_SECRET: ${ALPACA_API_SECRET:-}
+      
+      # Monitoring
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+      ENABLE_METRICS: ${ENABLE_METRICS:-true}
+    volumes:
+      - backend_logs:/app/logs
+      - prometheus_multiproc:/tmp/prometheus
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - tradeos-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      replicas: ${BACKEND_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ===========================================================================
+  # Frontend Web Application (React/Nginx)
+  # ===========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: tradeos-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-/api}
+      REACT_APP_WS_URL: ${REACT_APP_WS_URL:-/ws}
+      REACT_APP_VERSION: ${REACT_APP_VERSION:-1.0.0}
+    networks:
+      - tradeos-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: ${FRONTEND_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # ===========================================================================
+  # Nginx Reverse Proxy & Load Balancer
+  # ===========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: tradeos-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+      - ./frontend/build:/usr/share/nginx/html:ro
+    networks:
+      - tradeos-network
+    depends_on:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # ===========================================================================
+  # Celery Worker (Background Tasks)
+  # ===========================================================================
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: tradeos-celery-worker
+    restart: unless-stopped
+    command: celery -A app.core.celery worker -l info -Q default,trades,notifications --concurrency=4
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tradeos}:${POSTGRES_PASSWORD:-tradeos_secure_password_2024}@postgres:5432/${POSTGRES_DB:-tradeos}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-tradeos_redis_pass}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-tradeos_redis_pass}@redis:6379/2
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-tradeos_redis_pass}@redis:6379/3
+    volumes:
+      - backend_logs:/app/logs
+    networks:
+      - tradeos-network
+    depends_on:
+      - postgres
+      - redis
+    deploy:
+      replicas: ${CELERY_WORKERS:-2}
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # ===========================================================================
+  # Celery Beat (Scheduled Tasks)
+  # ===========================================================================
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: tradeos-celery-beat
+    restart: unless-stopped
+    command: celery -A app.core.celery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tradeos}:${POSTGRES_PASSWORD:-tradeos_secure_password_2024}@postgres:5432/${POSTGRES_DB:-tradeos}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-tradeos_redis_pass}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-tradeos_redis_pass}@redis:6379/2
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-tradeos_redis_pass}@redis:6379/3
+    volumes:
+      - celery_beat:/var/run/celery
+      - backend_logs:/app/logs
+    networks:
+      - tradeos-network
+    depends_on:
+      - postgres
+      - redis
+      - celery-worker
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+
+  # ===========================================================================
+  # Prometheus Metrics Collection
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: tradeos-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - tradeos-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # ===========================================================================
+  # Grafana Dashboards & Visualization
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: tradeos-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    networks:
+      - tradeos-network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_logs:
+    driver: local
+  nginx_cache:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  prometheus_multiproc:
+    driver: local
+  celery_beat:
+    driver: local
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  tradeos-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

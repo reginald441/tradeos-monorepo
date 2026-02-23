@@ -1,0 +1,302 @@
+# =============================================================================
+# TradeOS Git Ignore File
+# =============================================================================
+
+# =============================================================================
+# OS FILES
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# =============================================================================
+# IDE & EDITORS
+# =============================================================================
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# IntelliJ / PyCharm / WebStorm
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# =============================================================================
+# PYTHON
+# =============================================================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+env.bak/
+venv.bak/
+
+# Testing
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Environments
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+.venv
+
+# =============================================================================
+# NODE.JS
+# =============================================================================
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production builds
+build/
+dist/
+
+# Misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Parcel
+.cache/
+.parcel-cache/
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt/
+
+# VuePress
+.vuepress/dist
+
+# Serverless
+.serverless/
+
+# FuseBox
+.fusebox/
+
+# DynamoDB Local
+.dynamodb/
+
+# TernJS
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+docker-data/
+data/postgres/
+data/redis/
+*.pid
+
+# =============================================================================
+# LOGS
+# =============================================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# =============================================================================
+# DATABASE
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+
+# =============================================================================
+# CERTIFICATES & KEYS
+# =============================================================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+certs/
+ssl/
+nginx/ssl/
+
+# =============================================================================
+# BACKUPS
+# =============================================================================
+*.bak
+*.backup
+backups/
+
+# =============================================================================
+# MIGRATIONS (keep structure, ignore compiled)
+# =============================================================================
+backend/migrations/versions/*.pyc
+backend/migrations/__pycache__/
+
+# =============================================================================
+# MONITORING DATA
+# =============================================================================
+monitoring/grafana-data/
+monitoring/prometheus-data/
+
+# =============================================================================
+# TEMP FILES
+# =============================================================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+
+# =============================================================================
+# DEPLOYMENT
+# =============================================================================
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# =============================================================================
+# SECRETS (NEVER COMMIT!)
+# =============================================================================
+secrets/
+*.secret
+.secret*
+secrets.env
+secrets.yaml
+secrets.json
+
+# =============================================================================
+# LOCAL CONFIG
+# =============================================================================
+local.settings.json
+local.config.js
+config.local.js
+
+# =============================================================================
+# TRADEOS SPECIFIC
+# =============================================================================
+# Trading data
+trading-data/
+market-data/
+
+# Generated reports
+reports/
+exports/
+
+# User uploads
+uploads/
+media/
+
+# Cache
+.cache/
