@@ -504,3 +504,72 @@ TradeOS is built to make money from day one:
 **🎊 TradeOS is COMPLETE and READY TO LAUNCH! 🎊**
 
 This is a production-grade, enterprise-ready algorithmic trading platform that can compete with the best in the industry. Start your trading empire today!
+
+---
+
+## 🧭 TradeOS Master Context (for new chat continuity)
+
+Use this section when starting a fresh conversation so architecture and priorities are immediately clear.
+
+### Product
+TradeOS is a multi-asset algorithmic trading SaaS platform supporting:
+- Crypto (BTC, ETH, SOL, etc.)
+- Forex (EUR/USD, GBP/USD, etc.)
+- Gold (XAUUSD)
+- Commodities
+- Indices
+
+This is not a simple EMA bot; it is a modular trading operating system.
+
+### Architecture
+Monorepo structure includes:
+- `backend` (FastAPI)
+- `frontend` (React + TypeScript + Vite + Tailwind)
+- `nginx`
+- `monitoring` (Prometheus + Grafana)
+- `scripts` (DB init + seed)
+- `docker-compose.yml`
+- `docker-compose.override.yml`
+- `docker-compose.prod.yml`
+
+### Backend
+- FastAPI
+- Postgres 16 (Docker)
+- Redis
+- Celery Worker
+- Celery Beat
+- Authentication system
+- Trading endpoints
+- Strategy engine structure
+- Risk management structure
+
+### Frontend
+React + TypeScript + Vite + TailwindCSS pages include:
+- Dashboard
+- Login / Register
+- Strategies
+- Trading
+- Risk
+- Billing
+- Settings
+- Backtest
+
+### Monitoring
+- Prometheus
+- Grafana
+- Metrics endpoint
+
+### Docker Notes
+Known local issues encountered and tracked:
+- `container_name` conflicts with replicas
+- `deploy.replicas` used in normal Docker Compose
+- `version is obsolete` warnings
+- Windows Docker Desktop WSL context issues
+
+### Current Goals
+- Make TradeOS run locally cleanly with Docker Compose
+- Clean architecture (remove unnecessary code)
+- Ensure security (no exposed secrets)
+- Make system production-ready
+- Design monetization model for SaaS trading
+- Prepare for public deployment
