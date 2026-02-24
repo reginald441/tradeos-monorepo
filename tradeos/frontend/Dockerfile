@@ -75,7 +75,7 @@ COPY . .
 EXPOSE 3000
 
 # Start development server
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
 
 # =============================================================================
 # STAGE 4: Production (Nginx)
@@ -97,7 +97,7 @@ RUN rm -rf /etc/nginx/conf.d/default.conf \
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built application from builder stage
-COPY --from=builder /app/build /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Create health check endpoint
 RUN echo '<!DOCTYPE html><html><head><title>Health</title></head><body>OK</body></html>' > /usr/share/nginx/html/health
