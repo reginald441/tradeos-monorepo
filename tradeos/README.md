@@ -110,6 +110,7 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml down --remov
 
 If you split after `-f`, PowerShell treats the next token as a separate command and shows `flag needs an argument: 'f'`.
 
+
 ### Windows One-Command Health Check
 
 If VS Code feels stuck or you want a single automated check, run this in **PowerShell** from the `tradeos` folder:
@@ -124,6 +125,7 @@ This script will:
 - validate Compose config,
 - start/rebuild services, and
 - test backend health endpoints (`/health`, `/ready`, `/live`).
+
 
 ### Makefile Commands
 
