@@ -11,9 +11,25 @@ function Exit-IfFailed($stepDescription) {
 }
 
 
+if (-not (Test-Path "docker-compose.yml")) {
+    Write-Error "Run this script from the tradeos folder (where docker-compose.yml exists)."
+}
+
+
+$overridePath = "docker-compose.override.yml"
+if (Test-Path $overridePath) {
+    $overrideText = Get-Content $overridePath -Raw
+    if ($overrideText -match '\./nginx/nginx\.dev\.conf:/etc/nginx/nginx\.conf:ro') {
+        $overrideText = $overrideText -replace '\./nginx/nginx\.dev\.conf:/etc/nginx/nginx\.conf:ro', './nginx/nginx.conf:/etc/nginx/nginx.conf:ro'
+        Set-Content $overridePath $overrideText
+        Write-Host "Patched legacy nginx mount in docker-compose.override.yml (nginx.dev.conf -> nginx.conf)" -ForegroundColor Yellow
+    }
+
+
 
 if (-not (Test-Path "docker-compose.yml")) {
     Write-Error "Run this script from the tradeos folder (where docker-compose.yml exists)."
+
 }
 
 if (-not (Test-Path ".env")) {
@@ -32,7 +48,10 @@ if (-not $corsLine) {
 
 
 
+
+
 codex/ensure-docker-compose-runs-cleanly-872v1p
+
 
 $grafanaPortLine = Select-String -Path ".env" -Pattern "^GRAFANA_PORT=" -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $grafanaPortLine) {
@@ -45,6 +64,9 @@ if (-not $grafanaPortLine) {
 
 Write-Host "\n[1/6] Validating compose configuration..." -ForegroundColor Yellow
 docker compose -f docker-compose.yml -f docker-compose.override.yml config | Out-Null
+
+
+
 
 Exit-IfFailed "Compose config validation"
 
@@ -59,6 +81,25 @@ Exit-IfFailed "Compose up -d --build"
 Write-Host "[4/6] Service status:" -ForegroundColor Yellow
 docker compose -f docker-compose.yml -f docker-compose.override.yml ps
 Exit-IfFailed "Compose ps"
+
+
+Write-Host "[5/6] Waiting for backend readiness (up to 60s)..." -ForegroundColor Yellow
+$healthUrl = "http://localhost:8000/health"
+$healthy = $false
+for ($i = 1; $i -le 12; $i++) {
+    try {
+        $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 5
+        if ($response.StatusCode -eq 200) {
+            $healthy = $true
+            Write-Host "Backend became healthy on attempt $i" -ForegroundColor Green
+            break
+        }
+    } catch {
+        Start-Sleep -Seconds 5
+    }
+}
+
+Write-Host "[6/6] Backend health checks:" -ForegroundColor Yellow
 
 
 Write-Host "[2/6] Resetting old containers (down --remove-orphans)..." -ForegroundColor Yellow
@@ -93,6 +134,7 @@ Start-Sleep -Seconds 15
 Write-Host "[5/5] Backend health checks:" -ForegroundColor Yellow
 main
 
+
 $urls = @(
     "http://localhost:8000/health",
     "http://localhost:8000/ready",
@@ -108,6 +150,17 @@ foreach ($url in $urls) {
     }
 }
 
+
+if (-not $healthy) {
+    Write-Host "Backend did not become healthy in time; showing last 120 backend log lines:" -ForegroundColor Yellow
+    docker compose -f docker-compose.yml -f docker-compose.override.yml logs --tail=120 backend
+}
+
+Write-Host "\nOpen these URLs in your browser:" -ForegroundColor Cyan
+Write-Host "- Frontend: http://localhost:3000"
+Write-Host "- API docs: http://localhost:8000/docs"
+Write-Host "- Grafana: http://localhost:3001"
+
 Write-Host "\nOpen these URLs in your browser:" -ForegroundColor Cyan
 Write-Host "- Frontend: http://localhost:3000"
 Write-Host "- API docs: http://localhost:8000/docs"
@@ -117,4 +170,5 @@ Write-Host "- Grafana: http://localhost:3001"
 codex/ensure-docker-compose-runs-cleanly-872v1p
 Write-Host "- Grafana: http://localhost:3001"
 main
+
 
