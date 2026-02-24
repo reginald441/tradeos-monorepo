@@ -13,7 +13,9 @@ function Exit-IfFailed($stepDescription) {
 
 
 
+
 main
+
 if (-not (Test-Path "docker-compose.yml")) {
     Write-Error "Run this script from the tradeos folder (where docker-compose.yml exists)."
 }
@@ -22,6 +24,9 @@ if (-not (Test-Path "docker-compose.yml")) {
 $overridePath = "docker-compose.override.yml"
 if (Test-Path $overridePath) {
     $overrideText = Get-Content $overridePath -Raw
+
+
+
 
     if ($overrideText -match 'nginx\.dev\.conf') {
         $overrideText = $overrideText -replace 'nginx\.dev\.conf', 'nginx.conf'
@@ -33,6 +38,8 @@ if (Test-Path $overridePath) {
 $legacyMount = Select-String -Path $overridePath -Pattern "nginx.dev.conf" -ErrorAction SilentlyContinue
 if ($legacyMount) {
     Write-Error "docker-compose.override.yml still references nginx.dev.conf. Open the file and replace nginx.dev.conf with nginx.conf, then re-run the script."
+
+
 
     if ($overrideText -match '\./nginx/nginx\.dev\.conf:/etc/nginx/nginx\.conf:ro') {
         $overrideText = $overrideText -replace '\./nginx/nginx\.dev\.conf:/etc/nginx/nginx\.conf:ro', './nginx/nginx.conf:/etc/nginx/nginx.conf:ro'
@@ -68,7 +75,10 @@ if (-not $corsLine) {
 
 
 
+
+
 codex/ensure-docker-compose-runs-cleanly-872v1p
+
 
 
 
@@ -90,6 +100,9 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml config | Out
 
 
 
+
+
+
 Exit-IfFailed "Compose config validation"
 
 Write-Host "[2/6] Resetting old containers (down --remove-orphans)..." -ForegroundColor Yellow
@@ -97,12 +110,19 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml down --remov
 Exit-IfFailed "Compose down --remove-orphans"
 
 Write-Host "[3/6] Starting services..." -ForegroundColor Yellow
+
+docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build backend frontend postgres redis celery-worker celery-beat prometheus grafana
+Exit-IfFailed "Compose up -d --build (without nginx)"
+
 docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
 Exit-IfFailed "Compose up -d --build"
+
 
 Write-Host "[4/6] Service status:" -ForegroundColor Yellow
 docker compose -f docker-compose.yml -f docker-compose.override.yml ps
 Exit-IfFailed "Compose ps"
+
+
 
 
 
@@ -125,6 +145,8 @@ for ($i = 1; $i -le 12; $i++) {
 }
 
 Write-Host "[6/6] Backend health checks:" -ForegroundColor Yellow
+
+
 
 
 
@@ -163,6 +185,7 @@ main
 
 
 
+
 $urls = @(
     "http://localhost:8000/health",
     "http://localhost:8000/ready",
@@ -182,6 +205,9 @@ foreach ($url in $urls) {
 
 
 
+
+
+
 if (-not $healthy) {
     Write-Host "Backend did not become healthy in time; showing last 120 backend log lines:" -ForegroundColor Yellow
     docker compose -f docker-compose.yml -f docker-compose.override.yml logs --tail=120 backend
@@ -194,6 +220,8 @@ Write-Host "- Grafana: http://localhost:3001"
 
 
 
+
+
 Write-Host "\nOpen these URLs in your browser:" -ForegroundColor Cyan
 Write-Host "- Frontend: http://localhost:3000"
 Write-Host "- API docs: http://localhost:8000/docs"
@@ -203,6 +231,7 @@ Write-Host "- Grafana: http://localhost:3001"
 codex/ensure-docker-compose-runs-cleanly-872v1p
 Write-Host "- Grafana: http://localhost:3001"
 main
+
 
 
 
