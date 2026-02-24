@@ -84,6 +84,7 @@ TradeOS follows a 6-layer architecture:
    - Frontend: http://localhost:3000
    - API Docs: http://localhost:8000/docs
    - Backend API: http://localhost:8000
+   - Grafana: http://localhost:3001
 
 ### Windows One-Command Health Check
 
@@ -97,7 +98,8 @@ This script will:
 - create `.env` from `.env.example` if missing,
 - enforce valid `CORS_ORIGINS` JSON array format,
 - validate Compose config,
-- start/rebuild services, and
+- start/rebuild services,
+- avoid the common Grafana/Frontend 3000 port collision by defaulting Grafana to 3001, and
 - test backend health endpoints (`/health`, `/ready`, `/live`).
 
 PowerShell tip: keep the full compose command on **one line**.

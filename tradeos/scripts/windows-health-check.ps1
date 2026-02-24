@@ -20,6 +20,15 @@ if (-not $corsLine) {
     Write-Host "Updated CORS_ORIGINS to JSON array format" -ForegroundColor Yellow
 }
 
+$grafanaPortLine = Select-String -Path ".env" -Pattern "^GRAFANA_PORT=" -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $grafanaPortLine) {
+    Add-Content ".env" "`nGRAFANA_PORT=3001"
+    Write-Host "Added GRAFANA_PORT=3001 to .env to avoid frontend port collisions" -ForegroundColor Yellow
+} elseif ($grafanaPortLine.Line -match "^GRAFANA_PORT=3000$") {
+    (Get-Content ".env") -replace '^GRAFANA_PORT=3000$', 'GRAFANA_PORT=3001' | Set-Content ".env"
+    Write-Host "Updated GRAFANA_PORT from 3000 to 3001 to avoid frontend conflicts" -ForegroundColor Yellow
+}
+
 Write-Host "\n[1/6] Validating compose configuration..." -ForegroundColor Yellow
 docker compose -f docker-compose.yml -f docker-compose.override.yml config | Out-Null
 
@@ -54,3 +63,4 @@ foreach ($url in $urls) {
 Write-Host "\nOpen these URLs in your browser:" -ForegroundColor Cyan
 Write-Host "- Frontend: http://localhost:3000"
 Write-Host "- API docs: http://localhost:8000/docs"
+Write-Host "- Grafana: http://localhost:3001"
