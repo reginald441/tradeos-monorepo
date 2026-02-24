@@ -84,6 +84,32 @@ TradeOS follows a 6-layer architecture:
    - Frontend: http://localhost:3000
    - API Docs: http://localhost:8000/docs
    - Backend API: http://localhost:8000
+   - Grafana: http://localhost:3001
+
+### Windows One-Command Health Check
+
+If VS Code feels stuck or you want a single automated check, run this in **PowerShell** from the `tradeos` folder:
+
+```powershell
+./scripts/windows-health-check.ps1
+```
+
+This script will:
+- create `.env` from `.env.example` if missing,
+- enforce valid `CORS_ORIGINS` JSON array format,
+- validate Compose config,
+- start/rebuild services,
+- auto-fix a legacy `nginx.dev.conf` mount reference in `docker-compose.override.yml` if found,
+- avoid the common Grafana/Frontend 3000 port collision by defaulting Grafana to 3001, and
+- test backend health endpoints (`/health`, `/ready`, `/live`) with readiness retries.
+
+PowerShell tip: keep the full compose command on **one line**.
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.override.yml down --remove-orphans
+```
+
+If you split after `-f`, PowerShell treats the next token as a separate command and shows `flag needs an argument: 'f'`.
 
 ### Makefile Commands
 
@@ -133,6 +159,30 @@ tradeos/
 ├── docker-compose.yml      # Docker orchestration
 ├── Makefile               # Convenience commands
 └── README.md
+```
+
+
+## 🔄 Syncing Local Fixes to GitHub
+
+Changes made in this environment are local commits until you push them to your remote repository.
+
+```bash
+# 1) Add your GitHub remote once (if missing)
+git remote add origin https://github.com/reginald441/tradeos-monorepo.git
+
+# 2) Verify remotes
+git remote -v
+
+# 3) Push your current branch (example: work)
+git push -u origin work
+
+# 4) Open a PR on GitHub from work -> main
+```
+
+If `origin` already exists and points somewhere else, update it:
+
+```bash
+git remote set-url origin https://github.com/reginald441/tradeos-monorepo.git
 ```
 
 ## 🔧 Configuration
