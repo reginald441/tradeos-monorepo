@@ -99,9 +99,14 @@ This script will:
 - enforce valid `CORS_ORIGINS` JSON array format,
 - validate Compose config,
 - start/rebuild services,
+
 - auto-fix a legacy `nginx.dev.conf` mount reference in `docker-compose.override.yml` if found,
 - avoid the common Grafana/Frontend 3000 port collision by defaulting Grafana to 3001, and
 - test backend health endpoints (`/health`, `/ready`, `/live`) with readiness retries.
+
+- avoid the common Grafana/Frontend 3000 port collision by defaulting Grafana to 3001, and
+- test backend health endpoints (`/health`, `/ready`, `/live`).
+
 
 PowerShell tip: keep the full compose command on **one line**.
 
@@ -110,6 +115,26 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml down --remov
 ```
 
 If you split after `-f`, PowerShell treats the next token as a separate command and shows `flag needs an argument: 'f'`.
+
+
+
+
+### Windows One-Command Health Check
+
+If VS Code feels stuck or you want a single automated check, run this in **PowerShell** from the `tradeos` folder:
+
+```powershell
+./scripts/windows-health-check.ps1
+```
+
+This script will:
+- create `.env` from `.env.example` if missing,
+- enforce valid `CORS_ORIGINS` JSON array format,
+- validate Compose config,
+- start/rebuild services, and
+- test backend health endpoints (`/health`, `/ready`, `/live`).
+
+
 
 ### Makefile Commands
 

@@ -10,6 +10,7 @@ function Exit-IfFailed($stepDescription) {
     }
 }
 
+
 if (-not (Test-Path "docker-compose.yml")) {
     Write-Error "Run this script from the tradeos folder (where docker-compose.yml exists)."
 }
@@ -23,6 +24,12 @@ if (Test-Path $overridePath) {
         Set-Content $overridePath $overrideText
         Write-Host "Patched legacy nginx mount in docker-compose.override.yml (nginx.dev.conf -> nginx.conf)" -ForegroundColor Yellow
     }
+
+
+
+if (-not (Test-Path "docker-compose.yml")) {
+    Write-Error "Run this script from the tradeos folder (where docker-compose.yml exists)."
+
 }
 
 if (-not (Test-Path ".env")) {
@@ -39,6 +46,13 @@ if (-not $corsLine) {
     Write-Host "Updated CORS_ORIGINS to JSON array format" -ForegroundColor Yellow
 }
 
+
+
+
+
+codex/ensure-docker-compose-runs-cleanly-872v1p
+
+
 $grafanaPortLine = Select-String -Path ".env" -Pattern "^GRAFANA_PORT=" -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $grafanaPortLine) {
     Add-Content ".env" "`nGRAFANA_PORT=3001"
@@ -50,6 +64,10 @@ if (-not $grafanaPortLine) {
 
 Write-Host "\n[1/6] Validating compose configuration..." -ForegroundColor Yellow
 docker compose -f docker-compose.yml -f docker-compose.override.yml config | Out-Null
+
+
+
+
 Exit-IfFailed "Compose config validation"
 
 Write-Host "[2/6] Resetting old containers (down --remove-orphans)..." -ForegroundColor Yellow
@@ -63,6 +81,7 @@ Exit-IfFailed "Compose up -d --build"
 Write-Host "[4/6] Service status:" -ForegroundColor Yellow
 docker compose -f docker-compose.yml -f docker-compose.override.yml ps
 Exit-IfFailed "Compose ps"
+
 
 Write-Host "[5/6] Waiting for backend readiness (up to 60s)..." -ForegroundColor Yellow
 $healthUrl = "http://localhost:8000/health"
@@ -81,6 +100,41 @@ for ($i = 1; $i -le 12; $i++) {
 }
 
 Write-Host "[6/6] Backend health checks:" -ForegroundColor Yellow
+
+
+Write-Host "[2/6] Resetting old containers (down --remove-orphans)..." -ForegroundColor Yellow
+docker compose -f docker-compose.yml -f docker-compose.override.yml down --remove-orphans
+
+Write-Host "[3/6] Starting services..." -ForegroundColor Yellow
+docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
+
+Write-Host "[4/6] Service status:" -ForegroundColor Yellow
+docker compose -f docker-compose.yml -f docker-compose.override.yml ps
+
+
+Write-Host "[5/6] Waiting for backend warmup (15s)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 15
+
+Write-Host "[6/6] Backend health checks:" -ForegroundColor Yellow
+
+
+
+Write-Host "\n[1/5] Validating compose configuration..." -ForegroundColor Yellow
+docker compose -f docker-compose.yml -f docker-compose.override.yml config | Out-Null
+
+Write-Host "[2/5] Starting services..." -ForegroundColor Yellow
+docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
+
+Write-Host "[3/5] Service status:" -ForegroundColor Yellow
+docker compose -f docker-compose.yml -f docker-compose.override.yml ps
+
+Write-Host "[4/5] Waiting for backend warmup (15s)..." -ForegroundColor Yellow
+Start-Sleep -Seconds 15
+
+Write-Host "[5/5] Backend health checks:" -ForegroundColor Yellow
+main
+
+
 $urls = @(
     "http://localhost:8000/health",
     "http://localhost:8000/ready",
@@ -96,6 +150,7 @@ foreach ($url in $urls) {
     }
 }
 
+
 if (-not $healthy) {
     Write-Host "Backend did not become healthy in time; showing last 120 backend log lines:" -ForegroundColor Yellow
     docker compose -f docker-compose.yml -f docker-compose.override.yml logs --tail=120 backend
@@ -105,3 +160,15 @@ Write-Host "\nOpen these URLs in your browser:" -ForegroundColor Cyan
 Write-Host "- Frontend: http://localhost:3000"
 Write-Host "- API docs: http://localhost:8000/docs"
 Write-Host "- Grafana: http://localhost:3001"
+
+Write-Host "\nOpen these URLs in your browser:" -ForegroundColor Cyan
+Write-Host "- Frontend: http://localhost:3000"
+Write-Host "- API docs: http://localhost:8000/docs"
+
+Write-Host "- Grafana: http://localhost:3001"
+
+codex/ensure-docker-compose-runs-cleanly-872v1p
+Write-Host "- Grafana: http://localhost:3001"
+main
+
+
