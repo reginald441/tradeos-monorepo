@@ -3,12 +3,10 @@
 # Additional configuration for production deployments
 # =============================================================================
 
-version: "3.9"
 
 services:
   backend:
     deploy:
-      replicas: 3
       resources:
         limits:
           cpus: '2'
@@ -28,7 +26,6 @@ services:
 
   frontend:
     deploy:
-      replicas: 3
       resources:
         limits:
           cpus: '0.5'
@@ -85,7 +82,6 @@ services:
   # =============================================================================
   fluentd:
     image: fluent/fluentd:v1.16-debian
-    container_name: tradeos-fluentd
     volumes:
       - ./monitoring/fluentd/conf:/fluentd/etc
       - backend_logs:/var/log/tradeos:ro
