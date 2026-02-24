@@ -3,7 +3,6 @@
 # This file extends docker-compose.yml for local development
 # =============================================================================
 
-version: "3.9"
 
 services:
   backend:
@@ -15,7 +14,7 @@ services:
     environment:
       DEBUG: "true"
       LOG_LEVEL: DEBUG
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     build:
@@ -28,7 +27,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
-    command: npm start
+    command: npm run dev -- --host 0.0.0.0 --port 3000
 
   postgres:
     ports:
